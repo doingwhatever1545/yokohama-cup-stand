@@ -1,0 +1,42 @@
+// firestore.rules — who is allowed to read and write the database.
+// You paste this into Firebase: Firestore Database → Rules → Publish (setup guide, step 3).
+//
+// In plain English:
+//  • You must be signed in (the app signs every phone in anonymously, automatically).
+//  • You can only reach data under teams/<team code>/events/... — so you have to KNOW
+//    the team code. Nobody can ask the database for a list of all teams.
+//  • Team codes must be 16–64 characters long, so they can't be guessed.
+//  • Sale records must look like sale records, and nothing can be bigger than it should be.
+//  • Everything not listed here is blocked.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function goodTeam(team) { return team.size() >= 16 && team.size() <= 64 && team.matches('^[a-z0-9-]+$'); }
+
+    // A sale must have: items (1–2 product ids), a kind, a price, a count and a time.
+    function validSale() {
+      let d = request.resource.data;
+      return d.items is list && d.items.size() >= 1 && d.items.size() <= 2
+          && d.kind in ['sale', 'combo']
+          && d.price is number && d.count is number && d.count >= 1 && d.count <= 999
+          && d.at is number;
+    }
+
+    // One record per stand (name, products, combos, goal…)
+    match /teams/{team}/events/{eventId} {
+      allow read, delete: if signedIn() && goodTeam(team);
+      allow create, update: if signedIn() && goodTeam(team)
+                            && request.resource.data.items is list
+                            && request.resource.data.items.size() <= 100;
+
+      // One record per sale
+      match /sales/{saleId} {
+        allow read, delete: if signedIn() && goodTeam(team);
+        allow create, update: if signedIn() && goodTeam(team) && validSale();
+      }
+    }
+  }
+}

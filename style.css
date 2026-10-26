@@ -1,0 +1,158 @@
+/*
+  style.css — how the app LOOKS. Nothing here changes what the app does.
+
+  The top block (:root) is the colour + font "palette". Every other rule uses
+  those names (var(--court), var(--accent) …), so changing a colour in :root
+  changes it everywhere. The two blocks after it swap in dark-mode colours when
+  the phone is set to dark mode.
+*/
+/* Layout: phone-first tally board. Scoreboard strip on top, three tabs below: Sell (big tap tiles + feed), Goals & items (plan the stand), End of day (cash check). */
+:root{
+  --bg:#eef2f7; --surface:#ffffff; --surface-2:#e3e9f2; --ink:#14204a; --muted:#56627f; --line:#cfd8e6;
+  --accent:#f2c230; --accent-ink:#14204a; --court:#1f3d8f;
+  --good:#1d7a46; --good-bg:#dcf1e4; --bad:#b3261e; --bad-bg:#f8dcd9; --warn:#9a6400; --warn-bg:#fbeccb;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1430; --surface:#152046; --surface-2:#1d2a57; --ink:#eef2fb; --muted:#a4afcc; --line:#2a3970;
+  --accent:#f2c230; --accent-ink:#14204a; --court:#8fb0ff;
+  --good:#6fd39a; --good-bg:#16382a; --bad:#ff8f86; --bad-bg:#45201f; --warn:#f4c46a; --warn-bg:#3f3216; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1430; --surface:#152046; --surface-2:#1d2a57; --ink:#eef2fb; --muted:#a4afcc; --line:#2a3970;
+  --accent:#f2c230; --accent-ink:#14204a; --court:#8fb0ff;
+  --good:#6fd39a; --good-bg:#16382a; --bad:#ff8f86; --bad-bg:#45201f; --warn:#f4c46a; --warn-bg:#3f3216; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:1100px;margin:0 auto;padding-block:18px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.7rem,5vw,2.4rem);line-height:1}
+h2{font-size:1.35rem;text-transform:uppercase;letter-spacing:.06em}
+h3{font-size:1.1rem;text-transform:uppercase;letter-spacing:.05em}
+p{margin:0}
+.label{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.hint{font-size:.85rem;color:var(--muted)}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--court);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;justify-content:space-between}
+.event-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;color:var(--muted)}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.sync.live .dot{background:var(--good)} .sync.off .dot{background:var(--bad)}
+select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;max-width:100%}
+
+.board{background:var(--court);color:#fff;border-radius:var(--r);padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.board .label{color:#c7d4ff}
+.board .big{font-size:clamp(1.6rem,6vw,2.5rem);line-height:1.05}
+.board .sub{font-size:.8rem;color:#c7d4ff}
+.goalbar{grid-column:1/-1;display:grid;gap:6px}
+.goalbar .track{height:10px;border-radius:5px;background:rgba(255,255,255,.18);overflow:hidden}
+.goalbar .track i{display:block;height:100%;background:var(--accent);transition:width .3s ease}
+.goalbar .gl{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;color:#c7d4ff;flex-wrap:wrap}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:2px 8px;margin-top:4px}
+.pill.good{background:var(--good-bg);color:var(--good)} .pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.warn{background:var(--warn-bg);color:var(--warn)}
+@media (max-width:620px){.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.tabs{display:flex;gap:6px;background:var(--surface-2);border-radius:12px;padding:5px;overflow-x:auto}
+.tabs button{flex:1 0 auto;border:none;background:transparent;border-radius:9px;padding:10px 14px;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.main{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tile{position:relative;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);padding:12px 12px 10px;text-align:left;display:grid;gap:4px;min-height:132px;transition:transform .08s ease,border-color .15s}
+.tile:hover{border-color:var(--court)}
+.tile .name{font-weight:600;line-height:1.2;padding-right:2.6em;overflow-wrap:anywhere}
+.tile .price{font-family:var(--display);font-size:1.6rem;line-height:1}
+.tile .stock{font-size:.85rem;color:var(--muted)}
+.tile .bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:auto}
+.tile .bar i{display:block;height:100%;background:var(--accent)}
+.tile.low{border-color:var(--warn)} .tile.low .stock{color:var(--warn);font-weight:600}
+.tile.out{opacity:.55}
+.tile .sold{position:absolute;top:10px;right:10px;font-family:var(--display);font-size:1.2rem;background:var(--accent);color:var(--accent-ink);border-radius:999px;min-width:2.1em;text-align:center;padding:0 .4em}
+.tile.combo{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tile.combo .stock{color:var(--accent-ink)}
+.tile.combo .sold{background:var(--accent-ink);color:var(--accent)}
+.tile.combo .ctl .plus{background:var(--accent-ink);border-color:var(--accent-ink);color:var(--accent)}
+.tile.combo .ctl .minus{background:rgba(255,255,255,.55);border-color:transparent;color:var(--accent-ink)}
+.tile.combo .custom input{background:rgba(255,255,255,.7);border-color:transparent;color:var(--accent-ink)}
+.tile.combo .custom button{border-color:var(--accent-ink);color:var(--accent-ink)}
+.tile .tap{all:unset;cursor:pointer;display:grid;gap:4px;border-radius:10px;padding:2px}
+.tile .tap:focus-visible{outline:3px solid var(--court);outline-offset:2px}
+.tile .ctl{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.tile .ctl button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-family:var(--display);font-size:1.5rem;line-height:1;font-weight:700}
+.tile .ctl .plus{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tile .ctl button:disabled{opacity:.4;cursor:not-allowed}
+.tile:has(.tap:active){transform:scale(.98)}
+.tile .custom{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:0}
+.tile .custom input{min-width:0;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:6px 10px;font-variant-numeric:tabular-nums}
+.tile .custom button{min-height:40px;border-radius:10px;border:1px solid var(--court);background:transparent;color:var(--court);font-weight:700;padding:0 12px}
+.flash{animation:flash .45s ease}
+@keyframes flash{0%{box-shadow:0 0 0 0 var(--accent)}100%{box-shadow:0 0 0 14px transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.tile,.goalbar .track i{transition:none}}
+
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 14px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{padding:5px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.feed li{display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px;min-width:0}
+.feed .what{min-width:0;overflow-wrap:anywhere}
+.feed .t{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+
+.hours{display:flex;align-items:flex-end;gap:6px;height:92px;padding-top:6px}
+.hours .h{flex:1;display:grid;gap:4px;justify-items:center;min-width:0}
+.hours .b{width:100%;max-width:34px;background:var(--court);border-radius:4px 4px 0 0;min-height:2px}
+.hours .hl{font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-variant-numeric:tabular-nums}
+.kv .v{text-align:right;font-weight:600}
+.kv .tot{border-top:1px solid var(--line);padding-top:6px}
+
+.field{display:grid;gap:4px;min-width:0}
+.field input,.field select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.grid-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.prod{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:10px;background:var(--bg)}
+.prod .top{display:flex;gap:8px;align-items:flex-end}
+.prod .top .field{flex:1}
+.prod .nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.prod .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.prod .calc{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.check{display:inline-flex;align-items:center;gap:6px;font-size:.9rem}
+.check input{width:18px;height:18px}
+.save-state{font-size:.85rem;color:var(--muted);font-weight:600}
+.save-state.ok{color:var(--good)} .save-state.err{color:var(--bad)}
+
+.notice{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 12px;font-weight:500}
+.empty{color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;z-index:30}
+
+/* ---------- basics every page needs (box sizes, no default margins, hidden really hides) */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;color-scheme:light}
+body{margin:0;min-height:100vh}
+[hidden]{display:none!important}
+img{max-width:100%}
+
+/* ---------- phone notch / home bar: keep content clear of them */
+.wrap{padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:calc(48px + env(safe-area-inset-bottom,0px))}
+.toast{bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+
+/* ---------- join screen */
+.gate{min-height:100vh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.gate-card{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:grid;gap:14px}
+.gate-form{display:grid;gap:8px}
+.gate-form input{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:48px;width:100%}
+.gate-form .btn{min-height:48px}

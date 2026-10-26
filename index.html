@@ -1,0 +1,215 @@
+<!doctype html>
+<!--
+  index.html — the app's page: everything you SEE (tabs, buttons, boxes).
+  The look comes from style.css, the behaviour from app.js.
+  Element ids (id="sRev" etc.) are how app.js finds each box to fill it in.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover lets the app use the whole screen on phones with a notch -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Yokohama Cup Stand</title>
+  <meta name="description" content="Snack stand tracker for the Yokohama Cup — tap to sell, live totals for the whole team.">
+
+  <!-- These lines make it installable as a phone app -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#1f3d8f">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Cup Stand">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Fonts (if there's no internet the phone's normal font is used instead) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<!-- JOIN SCREEN: shown the first time, until this phone has a team code -->
+<div id="gate" class="gate" hidden>
+  <div class="gate-card">
+    <div class="label">Yokohama Cup · Sports Club</div>
+    <h1>Snack stand</h1>
+    <div id="setupMsg" class="notice" hidden>
+      This app isn't connected to its database yet. Whoever set it up needs to finish
+      step 5 in the setup guide (paste the Firebase settings into <strong>firebase-config.js</strong>).
+    </div>
+    <form id="joinForm" class="gate-form">
+      <label class="label" for="teamCode">Team code</label>
+      <input id="teamCode" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. yokohama-cup-7fq2-k9mx" required>
+      <p class="hint">Ask Taishi, Andrey or Sho for the code. Everyone using the same code sees the same stand and sales.</p>
+      <p id="joinError" class="pill bad" hidden></p>
+      <button class="btn primary" type="submit" id="joinBtn">Join team</button>
+    </form>
+    <p class="hint"><strong>Tip:</strong> add this page to your home screen so it opens like an app.
+      iPhone: Share → Add to Home Screen. Android: ⋮ menu → Install app / Add to Home screen.</p>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <div class="label">Yokohama Cup · Sports Club</div>
+      <h1 id="evName">Snack stand</h1>
+      <div class="event-meta">
+        <span id="evDate"></span>
+        <span class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting…</span></span>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label" for="eventSel">Stand</label>
+      <select id="eventSel"></select>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <!-- First time only: no stands exist yet for this team -->
+  <section class="panel" id="startBox" hidden>
+    <h2>Set up your first stand</h2>
+    <p class="hint">Start from the Nov 8 plan (Pocari, water, energy jelly, snacks, bananas with the planned prices) and change anything in Goals &amp; items, or start empty.</p>
+    <div class="row">
+      <button class="btn primary" type="button" id="startNov8">Start with the Nov 8 plan</button>
+      <button class="btn" type="button" id="startEmpty">Start an empty stand</button>
+    </div>
+  </section>
+
+  <section class="board" aria-label="Totals">
+    <div><div class="label">Money in</div><div class="big num" id="sRev">¥0</div><div class="sub" id="sCount">0 items sold</div></div>
+    <div><div class="label">Profit so far</div><div class="big num" id="sProfit">¥0</div><div id="sProfitPill"></div></div>
+    <div><div class="label">Cash box should hold</div><div class="big num" id="sBox">¥0</div><div class="sub" id="sFloat">incl. ¥0 float</div></div>
+    <div><div class="label">Stock left</div><div class="big num" id="sLeft">0</div><div class="sub" id="sLeftVal">¥0 reusable in April</div></div>
+    <div class="goalbar" id="goalBar" hidden>
+      <div class="gl"><span id="goalText">Profit goal</span><span id="goalPct"></span></div>
+      <div class="track"><i id="goalFill" style="width:0%"></i></div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-sell" aria-controls="view-sell" aria-selected="true">Sell</button>
+    <button role="tab" id="tab-goals" aria-controls="view-goals" aria-selected="false">Goals &amp; items</button>
+    <button role="tab" id="tab-close" aria-controls="view-close" aria-selected="false">End of day</button>
+  </nav>
+
+  <!-- SELL -->
+  <div id="view-sell" role="tabpanel" aria-labelledby="tab-sell" class="main">
+    <section class="panel" aria-labelledby="tapH">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="tapH">Tap to sell</h2>
+        <span class="label">+ sells one · − takes one back · or type an amount</span>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <p class="empty" id="tilesEmpty" hidden>No products yet. Add what you're selling in <button type="button" class="btn small" id="goGoals">Goals &amp; items</button></p>
+    </section>
+    <div style="display:grid;gap:18px;min-width:0">
+      <section class="panel" aria-labelledby="feedH">
+        <h2 id="feedH">Latest sales</h2>
+        <ul class="feed" id="feed"></ul>
+        <p class="empty" id="feedEmpty">Sales show up here as soon as anyone taps.</p>
+      </section>
+      <section class="panel" aria-labelledby="hourH">
+        <h2 id="hourH">Sales by hour</h2>
+        <div class="hours" id="hours"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- GOALS & ITEMS -->
+  <div id="view-goals" role="tabpanel" aria-labelledby="tab-goals" hidden style="display:grid;gap:18px">
+    <section class="panel" aria-labelledby="planH">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="planH">The plan</h2>
+        <span class="save-state" id="saveState">Changes save automatically</span>
+      </div>
+      <div class="main" style="gap:18px">
+        <div class="kv" id="planKv"></div>
+        <div style="display:grid;gap:8px;align-content:start">
+          <div class="field">
+            <label class="label" for="gGoal">Profit goal for this stand (¥)</label>
+            <input id="gGoal" type="number" min="0" step="500" inputmode="numeric" placeholder="e.g. 5000">
+          </div>
+          <div id="goalAdvice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="prodH">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="prodH">Products</h2>
+        <button class="btn primary" id="addProd" type="button">+ Add product</button>
+      </div>
+      <p class="hint">Every product here gets its own tap button on the Sell tab as soon as it has a name.</p>
+      <div class="products" id="prods"></div>
+      <p class="empty" id="prodsEmpty" hidden>No products yet. Add the first thing you're selling.</p>
+      <button class="btn" id="addProd2" type="button" style="justify-self:start">+ Add another product</button>
+    </section>
+
+    <section class="panel" aria-labelledby="comboDealsH">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="comboDealsH">Combo deals</h2>
+        <button class="btn primary" id="addCombo" type="button">+ Add combo deal</button>
+      </div>
+      <p class="hint">Put any two products together and give them one price. Each combo gets its own button on the Sell tab, and selling one takes both products out of stock.</p>
+      <div class="products" id="combos"></div>
+      <p class="empty" id="combosEmpty" hidden>No combo deals yet.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="detH">
+      <h2 id="detH">Stand details</h2>
+      <div class="grid-fields">
+        <div class="field"><label class="label" for="gName">Stand name</label><input id="gName"></div>
+        <div class="field"><label class="label" for="gDate">Date</label><input id="gDate" type="date"></div>
+        <div class="field"><label class="label" for="gFloat">Change float (¥)</label><input id="gFloat" type="number" min="0" step="100" inputmode="numeric"></div>
+        <div class="field"><label class="label" for="gExtra">Other costs — ice, bags (¥)</label><input id="gExtra" type="number" min="0" step="10" inputmode="numeric"></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="newH">
+      <h2 id="newH">New stand</h2>
+      <p class="hint">For the tournament days in April. Copies this stand's products and combos so you only change what's different.</p>
+      <div class="grid-fields">
+        <div class="field"><label class="label" for="newName">Name</label><input id="newName" placeholder="Yokohama Cup · Day 1"></div>
+        <div class="field"><label class="label" for="newDate">Date</label><input id="newDate" type="date"></div>
+        <button class="btn" id="newEvent" type="button" style="align-self:end">Create stand</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="teamH">
+      <h2 id="teamH">Team</h2>
+      <p class="hint">This phone is on team <strong id="teamShown"></strong>.</p>
+      <div class="row">
+        <button class="btn" id="switchTeam" type="button">Use a different team code</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- END OF DAY -->
+  <div id="view-close" role="tabpanel" aria-labelledby="tab-close" hidden>
+    <section class="panel" aria-labelledby="closeH">
+      <h2 id="closeH">End of day</h2>
+      <div class="main" style="gap:18px">
+        <div class="kv" id="report"></div>
+        <div style="display:grid;gap:12px;min-width:0;align-content:start">
+          <div class="field">
+            <label class="label" for="cashCount">Cash counted in the box (¥)</label>
+            <input id="cashCount" type="number" inputmode="numeric" min="0" step="10" placeholder="Count with a teacher">
+          </div>
+          <div id="cashDiff"></div>
+          <button class="btn primary" id="copySold" type="button">Copy sold counts for the budget sheet</button>
+          <p class="hint" id="copyHint">Paste into the SOLD column of the Nov 8 Fundraiser tab, first item row. Then type the "Combo discounts given" total from the list on the left into the combo row.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<!-- type="module" lets app.js use `import` to load Firebase -->
+<script type="module" src="./app.js"></script>
+</body>
+</html>
